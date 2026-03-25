@@ -1,0 +1,12 @@
+# Environment files with real secrets
+.env
+
+# Docker volumes accidentally mounted locally
+volumes/
+
+# macOS junk
+.DS_Store
+
+# Editor folders
+.vscode/
+.idea/
