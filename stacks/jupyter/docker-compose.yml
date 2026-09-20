@@ -1,0 +1,23 @@
+# Do NOT add a top-level "name:" key.
+# Portainer sets the Compose project name from the STACK NAME.
+
+services:
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    restart: unless-stopped
+    environment:
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:?JUPYTER_TOKEN is required}
+    ports:
+      - "${JUPYTER_PORT:-8888}:8888"
+    volumes:
+      - jupyter_work:/home/jovyan/work
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    name: ${NETWORK_NAME:-homelab_net}
+    external: true
+
+volumes:
+  jupyter_work:

@@ -1,0 +1,24 @@
+# Do NOT add a top-level "name:" key.
+# Portainer sets the Compose project name from the STACK NAME.
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    name: ${NETWORK_NAME:-homelab_net}
+    external: true
+
+volumes:
+  grafana_data:

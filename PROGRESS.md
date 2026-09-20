@@ -1,8 +1,3 @@
-I can't write directly to your GitHub repo — I don't have push access. You'll need to update the file yourself.
-
-Here's the updated `PROGRESS.md` content — copy/paste and commit it:
-
-````markdown
 # Homelab Docker — Progress Log
 
 ## Session 1
@@ -40,34 +35,46 @@ Here's the updated `PROGRESS.md` content — copy/paste and commit it:
 
 ### Completed
 - Reviewed next session plan from Session 1
-- Wrote `stacks/data-layer/docker-compose.yml` (PostgreSQL 15 + InfluxDB 2.7)
+- Wrote `stacks/databases/docker-compose.yml` (PostgreSQL 15 + InfluxDB 2.7)
 - Updated `.env.example` with required variables for both services
 - Established `homelab_net` as external shared network strategy
+
+---
+
+## Session 3 — 2026-09-20
+
+### Completed
+- Added `stacks/immich/` (real production stack: Immich server, ML, Redis, Postgres w/ pgvector) and `docs/GITOPS-WORKFLOW.md`, the full dev→main GitOps guide. Merged via PR #1 into `main`.
+- Established the `dev`/`main` promotion workflow: feature branch → PR into `dev` → verify → PR into `main` for prod. `dev` is long-lived and never deleted; feature branches are deleted after merge.
+- Fast-forwarded `dev` to match `main` (they had diverged since the Immich PR went straight to `main`) and deleted the merged `add-immich-stack` branch.
+- Filled in default configs for all remaining scaffolded stacks, following the lab pattern from `docs/GITOPS-WORKFLOW.md` (external `homelab_net` network var, `${VAR}`-driven ports, named volumes, no fixed `container_name`, since these stacks are meant to run as paired dev+prod deployments):
+  - `stacks/databases/` — PostgreSQL 15 + InfluxDB 2.7 (matches the GITOPS-WORKFLOW template)
+  - `stacks/mqtt/` — Eclipse Mosquitto, using `configs/mosquitto/mosquitto.conf` (also written; `allow_anonymous true` for now, internal network only)
+  - `stacks/grafana/` — Grafana
+  - `stacks/node-red/` — Node-RED
+  - `stacks/jupyter/` — Jupyter SciPy notebook
+  - `stacks/ignition/` — Ignition 8.1.43 pinned, `platform: linux/amd64`; per GITOPS-WORKFLOW Section 10 this should run as a **temporary test stack**, not a permanent dev stack
 
 ### Stack Status
 
 | Service | Image | Status |
 |---|---|---|
 | Portainer CE | portainer/portainer-ce:latest | ✅ Running |
-| Ignition 8.1 | inductiveautomation/ignition:8.1.x | 🔲 Pending |
-| Mosquitto | eclipse-mosquitto:latest | 🔲 Pending |
-| PostgreSQL | postgres:15 | 🔲 Pending — stack written, not deployed |
-| InfluxDB | influxdb:2.7 | 🔲 Pending — stack written, not deployed |
-| Grafana | grafana/grafana:latest | 🔲 Pending |
-| Node-RED | nodered/node-red:latest | 🔲 Pending |
-| Jupyter | jupyter/scipy-notebook | 🔲 Pending |
+| Immich | immich-server / immich-machine-learning / redis / postgres | ✅ Merged to main — verify deployed/running in Portainer |
+| PostgreSQL + InfluxDB | postgres:15 / influxdb:2.7 | 🔲 Written, not deployed |
+| Mosquitto | eclipse-mosquitto:latest | 🔲 Written, not deployed |
+| Grafana | grafana/grafana:latest | 🔲 Written, not deployed |
+| Node-RED | nodered/node-red:latest | 🔲 Written, not deployed |
+| Jupyter | jupyter/scipy-notebook | 🔲 Written, not deployed |
+| Ignition 8.1.43 | inductiveautomation/ignition:8.1.43 | 🔲 Written, not deployed — temporary test stack only |
 
 ### Next Session — Pick Up Here
-1. Answer open question: *Why are named volumes declared at the bottom of the compose file, outside service blocks?*
-2. Create `homelab_net` external network: `docker network create homelab_net`
-3. Connect Portainer to GitHub repo via SSH key
-4. Deploy `stacks/data-layer/docker-compose.yml` via Portainer
-5. Validate both containers healthy:
-   - Postgres: `docker exec -it homelab_postgres psql -U admin -d homelab`
-   - InfluxDB: browse `http://localhost:8086`
-6. Confirm Ignition patch version to pin before writing that stack
+1. Review and merge PR for `add-default-stacks` (branched off `dev`) — read every compose file before merging, this was a batch scaffold pass, not individually deployed/tested yet.
+2. Create the two external networks if not already done: `docker network create homelab_net` and `docker network create homelab_net_dev` (or `sudo podman network create ...` if targeting the rootful Podman host).
+3. Deploy stacks one at a time via Portainer (dev stack first, verify, then promote), starting with `databases` since Grafana/Node-RED will want it running.
+4. Decide real values for each stack's env vars in Portainer (never commit real values — `.env.example` in each stack folder lists what's needed).
+5. Revisit `mosquitto.conf`'s `allow_anonymous true` once the broker needs to be reachable beyond the internal network.
 
 ### Open Questions
-- Why are named volumes declared as top-level objects instead of inline per-service?
-- What Ignition 8.1.x patch version to pin? (recommendation: pin specific, e.g. `8.1.43`)
-````
+- Which stacks besides Immich are on the Podman host vs. the Mac Docker Desktop host? GITOPS-WORKFLOW.md Section 12 notes Immich uses rootful Podman — confirm the same or different host applies to the rest.
+- Do Grafana/Node-RED need explicit `depends_on`/network wiring to reach `databases`, or is shared `homelab_net` membership sufficient?

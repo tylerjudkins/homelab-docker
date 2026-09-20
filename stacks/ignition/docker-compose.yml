@@ -1,0 +1,32 @@
+# Do NOT add a top-level "name:" key.
+# Portainer sets the Compose project name from the STACK NAME.
+#
+# Per docs/GITOPS-WORKFLOW.md Section 10: run this as a TEMPORARY test
+# stack, not a permanent dev stack. A second gateway roughly doubles the
+# RAM/CPU cost, especially under Apple Silicon emulation.
+
+services:
+  ignition:
+    image: inductiveautomation/ignition:8.1.43
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      ACCEPT_IGNITION_EULA: "Y"
+      GATEWAY_ADMIN_USERNAME: ${IGNITION_ADMIN_USER:-admin}
+      GATEWAY_ADMIN_PASSWORD: ${IGNITION_ADMIN_PASSWORD:?IGNITION_ADMIN_PASSWORD is required}
+      IGNITION_EDITION: standard
+    ports:
+      - "${IGNITION_HTTP_PORT:-8088}:8088"
+      - "${IGNITION_HTTPS_PORT:-8043}:8043"
+    volumes:
+      - ignition_data:/usr/local/bin/ignition/data
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    name: ${NETWORK_NAME:-homelab_net}
+    external: true
+
+volumes:
+  ignition_data:

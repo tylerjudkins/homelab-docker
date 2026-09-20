@@ -1,0 +1,48 @@
+# Do NOT add a top-level "name:" key.
+# Portainer sets the Compose project name from the STACK NAME.
+# That prefix is what keeps dev and prod volumes separate.
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    # No container_name: a fixed name can only exist once per host
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      # ":?" aborts the deploy with a message if the variable is unset
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-homelab}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"    # host port varies per stack
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app_net
+
+  influxdb:
+    image: influxdb:2.7
+    restart: unless-stopped
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USER}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD:?INFLUX_PASSWORD is required}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-homelab}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-plant}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:?INFLUX_TOKEN is required}
+    ports:
+      - "${INFLUX_PORT:-8086}:8086"
+    volumes:
+      - influxdata:/var/lib/influxdb2
+      - influxconfig:/etc/influxdb2
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    name: ${NETWORK_NAME:-homelab_net}   # varies per stack
+    external: true                        # must exist before deploy
+
+volumes:
+  pgdata:
+  influxdata:
+  influxconfig:
