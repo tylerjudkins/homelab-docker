@@ -1,0 +1,73 @@
+# Do NOT add a top-level "name:" key.
+# Portainer sets the Compose project name from the STACK NAME (must be "immich"
+# to keep the pre-existing "immich_model-cache" volume and immich_default network).
+#
+# container_name is intentionally kept on every service here, unlike the
+# lab-pattern stacks: there is no parallel dev copy of Immich, so fixed
+# names are safe and match the containers' existing identity.
+# See docs/GITOPS-WORKFLOW.md Section 12 for why this stack departs from
+# the lab pattern.
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    volumes:
+      - /mnt/immich/photos:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      DB_HOSTNAME: database
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      # ":?" aborts the deploy with a message if the variable is unset
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_DATABASE_NAME: ${DB_DATABASE_NAME:-immich}
+      REDIS_HOSTNAME: redis
+    ports:
+      - "2283:2283"
+    depends_on:
+      - redis
+      - database
+    restart: always
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    volumes:
+      - model-cache:/cache
+    restart: always
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:9
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: always
+
+  database:
+    container_name: immich_postgres
+    # Pinned exactly: stock postgres:14 lacks the vector extensions this
+    # image ships, and a restore from backup will fail without them.
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_DATABASE_NAME:-immich}
+      POSTGRES_INITDB_ARGS: --data-checksums
+      DB_STORAGE_TYPE: SSD
+    volumes:
+      - /mnt/immich/postgres:/var/lib/postgresql/data
+    shm_size: 128mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d immich || exit 1"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: always
+
+volumes:
+  model-cache:
+    external: true
+    name: immich_model-cache

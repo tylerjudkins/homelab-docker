@@ -1,5 +1,11 @@
 # Environment files with real secrets
+# Order matters: .env.* ignores every variant, then the negation
+# re-includes only the placeholder file.
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # Docker volumes accidentally mounted locally
 volumes/
