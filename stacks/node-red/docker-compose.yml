@@ -1,0 +1,21 @@
+# Do NOT add a top-level "name:" key.
+# Portainer sets the Compose project name from the STACK NAME.
+
+services:
+  node-red:
+    image: nodered/node-red:latest
+    restart: unless-stopped
+    ports:
+      - "${NODE_RED_PORT:-1880}:1880"
+    volumes:
+      - node_red_data:/data
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    name: ${NETWORK_NAME:-homelab_net}
+    external: true
+
+volumes:
+  node_red_data:
