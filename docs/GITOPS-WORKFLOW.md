@@ -285,7 +285,9 @@ git push -u origin add-grafana-stack     # inert: nothing deploys
 
 Then on GitHub:
 
-1. **Open a PR:** `add-grafana-stack` into **`dev`**. Read the diff and merge.
+1. **Open a PR:** `add-grafana-stack` into **`dev`**.
+   > **Check the base branch first.** GitHub defaults the PR base to `main`. Before clicking "Create pull request," change the base-branch dropdown (next to "compare") from `main` to `dev` — otherwise the change lands directly in prod and skips the dev stack test entirely. This has already happened twice in this repo's history.
+   Read the diff and merge.
 2. **Dev stack redeploys.** Test it (logs, UI, connections).
 3. **Open a PR:** `dev` into **`main`**. Merge using **"Create a merge commit"**, not squash.
 4. **Prod stack redeploys.**
