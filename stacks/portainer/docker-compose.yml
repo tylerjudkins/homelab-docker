@@ -1,0 +1,10 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:lts     # LTS: stabler release track for the box that manages everything else
+    container_name: portainer             # single instance by definition
+    ports:
+      - "${PORTAINER_PORT:-9444}:9443"    # host 9444 avoids UGOS's own 9443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${APPDATA}/portainer/data:/data
+    restart: unless-stopped
