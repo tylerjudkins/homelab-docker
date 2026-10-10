@@ -1,29 +1,29 @@
 # Do NOT add a top-level "name:" key.
-# Portainer sets the Compose project name from the STACK NAME ("immich").
+# Portainer sets the Compose project name from the STACK NAME (must be "immich"
+# to keep the pre-existing "immich_model-cache" volume and immich_default network).
 #
-# container_name is intentionally kept on every service: there is no parallel
-# dev copy of Immich. See docs/GITOPS-WORKFLOW.md Section 12.
-#
-# The container-side photo path (/data) must never change: Immich stores every
-# asset path in Postgres as /data/..., so a restored DB only finds files there.
+# container_name is intentionally kept on every service here, unlike the
+# lab-pattern stacks: there is no parallel dev copy of Immich, so fixed
+# names are safe and match the containers' existing identity.
+# See docs/GITOPS-WORKFLOW.md Section 12 for why this stack departs from
+# the lab pattern.
 
 services:
   immich-server:
     container_name: immich_server
-    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:?IMMICH_VERSION is required}
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
     volumes:
-      - ${PHOTOS_PATH}:/data
+      - /mnt/immich/photos:/data
       - /etc/localtime:/etc/localtime:ro
-    devices:
-      - /dev/dri:/dev/dri                # QuickSync for video transcoding
     environment:
       DB_HOSTNAME: database
       DB_USERNAME: ${DB_USERNAME:-postgres}
+      # ":?" aborts the deploy with a message if the variable is unset
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       DB_DATABASE_NAME: ${DB_DATABASE_NAME:-immich}
       REDIS_HOSTNAME: redis
     ports:
-      - "${IMMICH_PORT:-2283}:2283"
+      - "2283:2283"
     depends_on:
       - redis
       - database
@@ -31,9 +31,9 @@ services:
 
   immich-machine-learning:
     container_name: immich_machine_learning
-    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:?IMMICH_VERSION is required}
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
     volumes:
-      - ${APPDATA}/immich/model-cache:/cache   # regenerable; models re-download if lost
+      - model-cache:/cache
     restart: always
 
   redis:
@@ -48,16 +48,17 @@ services:
 
   database:
     container_name: immich_postgres
-    # Pinned exactly: must match the image the dump came from.
+    # Pinned exactly: stock postgres:14 lacks the vector extensions this
+    # image ships, and a restore from backup will fail without them.
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
     environment:
       POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_DB: ${DB_DATABASE_NAME:-immich}
       POSTGRES_INITDB_ARGS: --data-checksums
-      DB_STORAGE_TYPE: ${DB_STORAGE_TYPE:-HDD}   # HDD tuning; set SSD if moved to NVMe
+      DB_STORAGE_TYPE: SSD
     volumes:
-      - ${DB_DATA_PATH}:/var/lib/postgresql/data  # host dir must have chattr +C on Btrfs
+      - /mnt/immich/postgres:/var/lib/postgresql/data
     shm_size: 128mb
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d immich || exit 1"]
@@ -65,3 +66,8 @@ services:
       timeout: 30s
       retries: 3
     restart: always
+
+volumes:
+  model-cache:
+    external: true
+    name: immich_model-cache
