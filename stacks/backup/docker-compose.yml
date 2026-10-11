@@ -1,0 +1,53 @@
+# resticker: scheduled restic backups (https://github.com/djmaze/resticker)
+# SKIP_INIT=true on both: never create a repo. A missing WD mount or a wrong
+# B2 URL fails the backup (and alerts) instead of initializing a new repo,
+# e.g. on the 19 GB eMMC overlay that holds UGOS.
+
+services:
+  backup-local:
+    image: mazzolino/restic:${RESTICKER_TAG:?RESTICKER_TAG is required}
+    container_name: backup-local
+    hostname: homenas                     # fixed host: restic finds the parent snapshot, no full rescan
+    restart: unless-stopped
+    environment:
+      BACKUP_CRON: "0 0 3 * * *"          # 03:00 daily, after Immich's 02:00 DB dump (seconds field first)
+      RESTIC_REPOSITORY: /repo
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?RESTIC_PASSWORD is required}
+      RESTIC_BACKUP_SOURCES: /data
+      RESTIC_BACKUP_ARGS: >-
+        --exclude /data/photos/encoded-video
+        --exclude /data/docker/immich/postgres
+        --exclude /data/docker/immich/model-cache
+        --exclude /data/docker/jellyfin/cache
+      RESTIC_FORGET_ARGS: --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+      SKIP_INIT: "true"
+      TZ: America/Boise
+      POST_COMMANDS_SUCCESS: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL}
+      POST_COMMANDS_FAILURE: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL}/fail
+      POST_COMMANDS_INCOMPLETE: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL}/fail
+    volumes:
+      - ${WD_REPO_PATH}:/repo
+      - ${PHOTOS_PATH}:/data/photos:ro
+      - ${APPDATA}:/data/docker:ro
+
+  backup-b2:
+    image: mazzolino/restic:${RESTICKER_TAG:?RESTICKER_TAG is required}
+    container_name: backup-b2
+    hostname: homenas
+    restart: unless-stopped
+    environment:
+      BACKUP_CRON: "0 0 4 * * 0"          # 04:00 Sundays
+      RESTIC_REPOSITORY: b2:tylerj-immich-restic:immich
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?RESTIC_PASSWORD is required}
+      B2_ACCOUNT_ID: ${B2_ACCOUNT_ID:?B2_ACCOUNT_ID is required}
+      B2_ACCOUNT_KEY: ${B2_ACCOUNT_KEY:?B2_ACCOUNT_KEY is required}
+      RESTIC_BACKUP_SOURCES: /data/photos
+      RESTIC_BACKUP_ARGS: --exclude /data/photos/encoded-video
+      RESTIC_FORGET_ARGS: --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+      SKIP_INIT: "true"
+      TZ: America/Boise
+      POST_COMMANDS_SUCCESS: curl -fsS -m 10 --retry 3 ${HC_B2_URL}
+      POST_COMMANDS_FAILURE: curl -fsS -m 10 --retry 3 ${HC_B2_URL}/fail
+      POST_COMMANDS_INCOMPLETE: curl -fsS -m 10 --retry 3 ${HC_B2_URL}/fail
+    volumes:
+      - ${PHOTOS_PATH}:/data/photos:ro
