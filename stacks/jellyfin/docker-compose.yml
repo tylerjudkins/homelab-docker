@@ -14,5 +14,5 @@ services:
     volumes:
       - ${APPDATA}/jellyfin/config:/config
       - ${APPDATA}/jellyfin/cache:/cache
-      - ${MEDIA_PATH}:/media:ro
+      - ${MEDIA_PATH}:/media
     restart: unless-stopped
