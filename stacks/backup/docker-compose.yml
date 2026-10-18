@@ -2,6 +2,11 @@
 # SKIP_INIT=true on both: never create a repo. A missing WD mount or a wrong
 # B2 URL fails the backup (and alerts) instead of initializing a new repo,
 # e.g. on the 19 GB eMMC overlay that holds UGOS.
+#
+# Healthcheck hooks end in "|| true": a failed ping must never stop the backup.
+# Without it, resticker exits before removing /run/lock/backup.lock and every
+# later scheduled run is silently skipped ("Backup already running").
+# HC_*_URL use :? so a blank URL fails the deploy instead of shipping a broken hook.
 
 services:
   backup-local:
@@ -22,13 +27,13 @@ services:
       RESTIC_FORGET_ARGS: --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
       SKIP_INIT: "true"
       TZ: America/Boise
-      POST_COMMANDS_SUCCESS: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL}
-      POST_COMMANDS_FAILURE: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL}/fail
-      POST_COMMANDS_INCOMPLETE: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL}/fail
+      POST_COMMANDS_SUCCESS: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL:?HC_LOCAL_URL is required} || true
+      POST_COMMANDS_FAILURE: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL:?HC_LOCAL_URL is required}/fail || true
+      POST_COMMANDS_INCOMPLETE: curl -fsS -m 10 --retry 3 ${HC_LOCAL_URL:?HC_LOCAL_URL is required}/fail || true
     volumes:
-      - ${WD_REPO_PATH}:/repo
-      - ${PHOTOS_PATH}:/data/photos:ro
-      - ${APPDATA}:/data/docker:ro
+      - ${WD_REPO_PATH:?WD_REPO_PATH is required}:/repo
+      - ${PHOTOS_PATH:?PHOTOS_PATH is required}:/data/photos:ro
+      - ${APPDATA:?APPDATA is required}:/data/docker:ro
 
   backup-b2:
     image: mazzolino/restic:${RESTICKER_TAG:?RESTICKER_TAG is required}
@@ -46,8 +51,8 @@ services:
       RESTIC_FORGET_ARGS: --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
       SKIP_INIT: "true"
       TZ: America/Boise
-      POST_COMMANDS_SUCCESS: curl -fsS -m 10 --retry 3 ${HC_B2_URL}
-      POST_COMMANDS_FAILURE: curl -fsS -m 10 --retry 3 ${HC_B2_URL}/fail
-      POST_COMMANDS_INCOMPLETE: curl -fsS -m 10 --retry 3 ${HC_B2_URL}/fail
+      POST_COMMANDS_SUCCESS: curl -fsS -m 10 --retry 3 ${HC_B2_URL:?HC_B2_URL is required} || true
+      POST_COMMANDS_FAILURE: curl -fsS -m 10 --retry 3 ${HC_B2_URL:?HC_B2_URL is required}/fail || true
+      POST_COMMANDS_INCOMPLETE: curl -fsS -m 10 --retry 3 ${HC_B2_URL:?HC_B2_URL is required}/fail || true
     volumes:
-      - ${PHOTOS_PATH}:/data/photos:ro
+      - ${PHOTOS_PATH:?PHOTOS_PATH is required}:/data/photos:ro
