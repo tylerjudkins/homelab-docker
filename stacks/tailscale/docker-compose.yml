@@ -1,0 +1,20 @@
+services:
+  tailscale:
+    image: tailscale/tailscale:${TAILSCALE_TAG:-latest}
+    container_name: tailscale           # deliberate exception: single prod instance, not a dev/prod pair
+    hostname: ${TS_HOSTNAME:-ugreen-nas}
+    network_mode: host                  # NAS services reachable on the tailnet IP, no port mapping
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_HOSTNAME=${TS_HOSTNAME:-ugreen-nas}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_EXTRA_ARGS=--advertise-routes=${TS_ROUTES}
+      - TZ=${TZ}
+    volumes:
+      - ${APPDATA}/tailscale:/var/lib/tailscale
+    restart: unless-stopped
